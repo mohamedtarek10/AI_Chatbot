@@ -1,11 +1,15 @@
 # AI_Chatbot
-AI_chatbot for EV systems
 
-install requirements.txt\n
+AI chatbot for EV systems
+
+## Installation
+
 pip install -r requirements.txt
 
-for running the app\n
+## Run the App
+
 streamlit run streamlit_app.py
 
-for training the model\n
+## Train the Model
+
 python finetune/trainer.py --dry-run
