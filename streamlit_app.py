@@ -1,7 +1,7 @@
 import uuid
 import streamlit as st
 
-from main import init_rag_system, get_answer
+from main import init_rag_system, get_answer, add_url_to_knowledge_base
 
 
 st.set_page_config(
@@ -47,6 +47,33 @@ def main() -> None:
     with st.spinner("Initializing system..."):
         resources = get_rag_resources()
 
+    with st.sidebar:
+        st.header("Add Knowledge")
+        url_input = st.text_input("Enter URL to scrape")
+        if st.button("Add URL"):
+            if url_input:
+                with st.spinner("Scraping and indexing..."):
+                    success, msg = add_url_to_knowledge_base(url_input, resources)
+                    if success:
+                        st.success(msg)
+                        # Clear cache to force reload of the updated vectorstore
+                        st.cache_resource.clear()
+                        # Rerun to refresh the session with new resources
+                        st.rerun()
+                    else:
+                        st.error(f"Failed: {msg}")
+
+        # st.markdown("---")
+        # if st.button("Reset Knowledge Base", type="primary"):
+        #     with st.spinner("Resetting..."):
+        #         import shutil
+        #         import os
+        #         if os.path.exists("faiss_ev"):
+        #             shutil.rmtree("faiss_ev")
+        #         st.cache_resource.clear()
+        #         st.success("Knowledge base reset. Please refresh.")
+        #         st.rerun()
+
     col1, col2 = st.columns([3, 1])
     with col2:
         if st.button("Start new session", use_container_width=True):
@@ -54,7 +81,13 @@ def main() -> None:
             st.session_state.messages = []
             st.toast("New session created.")
 
- 
+    # with st.expander("How this works"):
+    #     st.markdown(
+    #         "- Your questions are answered using the indexed PDF documents in `files/`.\n"
+    #         "- Each chat session keeps only the last couple of turns for context.\n"
+    #         "- Sources include file name and modified date when available."
+    #     )
+
     render_history()
 
     prompt = st.chat_input("Ask about charging stations...")
@@ -70,11 +103,20 @@ def main() -> None:
                     answer = result.get("answer") if isinstance(result, dict) else str(result)
                     sources = result.get("context") if isinstance(result, dict) else None
                 except Exception as exc:
+                    import traceback
+                    traceback.print_exc()
                     answer = f"Something went wrong: {exc}"
                     sources = None
                 st.markdown(answer)
 
-               
+                # if sources:
+                #     with st.expander("Sources"):
+                #         for idx, doc in enumerate(sources, start=1):
+                #             meta = doc.metadata or {}
+                #             file_name = meta.get("file_name") or meta.get("source") or "unknown"
+                #             last_modified = meta.get("last_modified_date", "unknown")
+                #             st.markdown(f"**{idx}. {file_name}** — Last modified: {last_modified}")
+
         append_message("assistant", answer)
 
 

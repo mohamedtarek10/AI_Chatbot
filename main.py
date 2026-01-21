@@ -3,6 +3,7 @@ import os
 import tiktoken
 from langchain_ollama import ChatOllama
 from langchain_community.vectorstores import FAISS
+from langchain_community.document_loaders import WebBaseLoader
 
 from langchain_core.runnables import RunnableLambda
 from sentence_transformers import CrossEncoder
@@ -71,6 +72,36 @@ def text_splitter(loader):
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=2000, chunk_overlap=500, separators=["\n"])
     splits = text_splitter.split_documents(loader)
     return splits
+
+from datetime import datetime
+
+def add_url_to_knowledge_base(url: str, resources: dict):
+    """Scrape a URL and add it to the existing vector store."""
+    print(f"Scraping URL: {url}")
+    try:
+        loader = WebBaseLoader(url)
+        docs = loader.load()
+        
+        # Enrich metadata for compatibility with custom_document_prompt
+        for doc in docs:
+            doc.metadata["file_name"] = url # Use URL as file_name
+            doc.metadata["last_modified_date"] = datetime.now().isoformat()
+        
+        # Split documents (splits inherit metadata)
+        splits = text_splitter(docs)
+        
+        # Add to vectorstore
+        vectorstore = resources["vectorstore"]
+        vectorstore.add_documents(splits)
+        
+        # Save locally
+        vectorstore.save_local(FAISS_INDEX_FILE)
+        print(f"Successfully added {len(splits)} chunks from {url}")
+        return True, f"Successfully added content from {url}"
+    except Exception as e:
+        print(f"Error scraping {url}: {e}")
+        return False, str(e)
+
 
 def init_rag_system():
     """Initialize all heavy resources and return them in a dictionary."""
